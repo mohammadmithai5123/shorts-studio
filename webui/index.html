@@ -1,0 +1,560 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Shorts Studio</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%238b6cff'/%3E%3Cpath d='M12 9l11 7-11 7z' fill='white'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+
+<header class="topbar">
+  <div class="topbar-in">
+    <a class="brand" href="#/create" aria-label="Shorts Studio home">Shorts <span>Studio</span></a>
+    <nav class="nav" id="nav" aria-label="Main">
+      <a href="#/create" data-view="create"><i aria-hidden="true">✨</i> Create</a>
+      <a href="#/projects" data-view="projects"><i aria-hidden="true">🎞</i> Videos <span class="count" id="navProj"></span></a>
+      <a href="#/youtube" data-view="youtube"><i aria-hidden="true">▶</i> YouTube <span class="count" id="navYt" hidden></span></a>
+    </nav>
+    <div class="chips" id="chips"></div>
+    <button class="small ghost" id="openSettings" title="AI key, logins, health, disk">⚙ Settings</button>
+    <button class="small ghost" id="theme" title="Switch between automatic, light and dark theme">Theme: auto</button>
+  </div>
+</header>
+
+<div class="wrap">
+  <div id="banner" role="status"></div>
+  <section id="jobs" aria-live="polite"></section>
+
+  <main id="main">
+
+  <!-- ============ CREATE ============ -->
+  <section class="view" id="view-create">
+    <div class="panel setup" id="setup" hidden></div>
+
+    <section class="panel create" aria-labelledby="createH">
+      <h2 id="createH">Make shorts from a video</h2>
+      <label class="f" for="urls">Video link</label>
+      <textarea id="urls" rows="1" placeholder="Paste a YouTube link (or several, one per line), or the path of a video file" autocomplete="off" spellcheck="false"></textarea>
+
+      <div class="field-label">What should I look for?</div>
+      <div class="chip-row" id="focusChips">
+        <button type="button" class="on" data-focus="">✨ Best moments</button>
+        <button type="button" data-focus="the funniest moments and reactions">😂 Funny</button>
+        <button type="button" data-focus="key insights, lessons and surprising facts">🧠 Insights</button>
+        <button type="button" data-focus="intense, high-energy and action-packed moments">⚡ Intense</button>
+        <button type="button" data-focus="emotional, heartfelt and dramatic moments">❤️ Emotional</button>
+        <button type="button" data-focus="practical tips, how-to advice and hacks">💡 Tips</button>
+      </div>
+      <label class="f" style="margin-top:10px" for="focus">…or describe it in your own words (optional)
+        <input type="text" id="focus" placeholder="e.g. every time he gets scared, advice for beginners, the plot twist" maxlength="300">
+      </label>
+
+      <div class="field-label">Clip length</div>
+      <div class="seg" id="lenSeg">
+        <button type="button" data-min="15" data-max="30">15–30 s</button>
+        <button type="button" class="on" data-min="20" data-max="59">20–59 s · Shorts</button>
+        <button type="button" data-min="45" data-max="59">45–59 s</button>
+      </div>
+
+      <div class="field-label">Editing (done automatically)</div>
+      <div class="seg" id="editSeg">
+        <button type="button" class="on" data-edit="viral">✨ Viral</button>
+        <button type="button" data-edit="clean">Clean</button>
+        <button type="button" data-edit="off">Off</button>
+      </div>
+      <p class="muted small" id="editNote" style="margin:6px 0 0"></p>
+
+      <div class="field-label">Subtitle letters</div>
+      <select id="capScript" aria-label="Subtitle letters">
+        <option value="roman">Roman (Hinglish / Roman Urdu)</option>
+        <option value="original">As spoken (हिंदी / اردو script)</option>
+      </select>
+
+      <div class="field-label">Green-screen streamer on top: background</div>
+      <select id="faceBg" aria-label="Background behind a green-screen streamer">
+        <option value="white">White</option><option value="green">Green</option><option value="black">Black</option>
+        <option value="blue">Blue</option><option value="purple">Purple</option><option value="pink">Pink</option>
+      </select>
+      <p class="muted small" style="margin:6px 0 0">Gaming streams where the person is cut out over the game: they go on top on this colour, the game below.</p>
+
+      <div class="field-label">Memes</div>
+      <div class="row" style="align-items:center">
+        <span class="small" id="memeNote"></span>
+        <button type="button" class="small" id="memeOpen">Open memes folder</button>
+      </div>
+
+      <div class="field-label">What should happen next?</div>
+      <div class="modes" role="radiogroup" aria-label="Mode">
+        <label class="mode on" id="modeManualBox">
+          <input type="radio" name="mode" id="modeManual" value="manual" checked>
+          <b>👀 Let me choose</b>
+          <span>Find the best moments, then you tick the ones you like and render them.</span>
+        </label>
+        <label class="mode" id="modeAutoBox">
+          <input type="radio" name="mode" id="modeAuto" value="auto">
+          <b>🚀 Autopilot</b>
+          <span>Find, render and upload to your YouTube channel. No more clicks.</span>
+        </label>
+      </div>
+      <div class="autopilot hidden" id="apOpts">
+        <div class="row">
+          <label class="f">How many clips
+            <select id="apCount"><option>1</option><option>3</option><option selected>5</option><option>8</option><option>12</option></select>
+          </label>
+          <label class="f">Only moments scoring at least
+            <select id="apMin"><option value="0">Any score</option><option value="60">60</option><option value="75" selected>75</option><option value="85">85</option></select>
+          </label>
+          <label class="f">Visibility
+            <select id="apPrivacy"><option value="private">Private (I check first)</option><option value="unlisted">Unlisted</option><option value="public">Public</option></select>
+          </label>
+          <label class="f">Publish
+            <select id="apWhen">
+              <option value="now">All right away</option><option value="6">One every 6 hours</option>
+              <option value="12">One every 12 hours</option><option value="24">One per day</option>
+            </select>
+          </label>
+        </div>
+        <p class="muted small" id="apNote" style="margin:8px 0 0"></p>
+      </div>
+
+      <details class="more">
+        <summary>More options</summary>
+        <div class="row">
+          <label class="f">Moments to find
+            <select id="cands"><option>6</option><option selected>10</option><option>15</option><option>20</option><option>30</option><option>40</option></select>
+          </label>
+          <label class="f">Speech language
+            <select id="lang">
+              <option value="" selected>The video's own</option><option value="en">English</option><option value="hi">Hindi</option>
+              <option value="ur">Urdu</option><option value="ar">Arabic</option><option value="es">Spanish</option>
+              <option value="fr">French</option><option value="de">German</option><option value="pt">Portuguese</option>
+              <option value="id">Indonesian</option><option value="tr">Turkish</option>
+            </select>
+          </label>
+          <label class="f">Render the top clips straight away
+            <select id="autoRender"><option value="0" selected>No, let me choose first</option><option value="1">Top 1</option><option value="3">Top 3</option><option value="5">Top 5</option></select>
+          </label>
+        </div>
+        <div class="row" style="margin-top:6px">
+          <label class="check"><input type="checkbox" id="useAudio" checked> Use how loud and excited the voice gets</label>
+          <label class="check"><input type="checkbox" id="useReplay" checked> Use YouTube's "most replayed" data when it exists</label>
+          <label class="check"><input type="checkbox" id="refresh"> Start fresh (ignore saved transcript)</label>
+        </div>
+      </details>
+
+      <div class="go">
+        <button class="primary big" id="analyze" data-label="Find the best moments">Find the best moments</button>
+        <span class="muted small">The video is never downloaded as a whole: the tool reads its captions, ranks the moments, and fetches only the clips you render.</span>
+      </div>
+    </section>
+
+    <section id="recentBox" hidden>
+      <div class="viewhead"><h2>Continue where you stopped</h2><a class="small" href="#/projects">All videos →</a></div>
+      <div class="lib" id="recent"></div>
+    </section>
+  </section>
+
+  <!-- ============ VIDEOS ============ -->
+  <section class="view" id="view-projects" hidden>
+    <div class="viewhead">
+      <h2>Your videos</h2>
+      <input type="search" id="projSearch" placeholder="Search your videos…" aria-label="Search your videos">
+    </div>
+    <div class="lib" id="lib"></div>
+    <div class="empty" id="libEmpty" hidden>No videos yet. Paste a link on the <a href="#/create">Create</a> page to start.</div>
+  </section>
+
+  <!-- ============ ONE VIDEO ============ -->
+  <section class="view" id="project" hidden>
+    <a class="back small" href="#/projects">← All videos</a>
+    <div class="phead">
+      <img id="pThumb" alt="" hidden>
+      <div class="info">
+        <h2 class="title" id="pTitle"></h2>
+        <div class="chips" style="margin-left:0" id="pChips"></div>
+        <div class="actions">
+          <button class="small" id="btnRerun">🎯 Search again with a different focus</button>
+          <a class="small" id="btnWatch" target="_blank" rel="noopener" hidden><button class="small" type="button">▶ Open the video</button></a>
+          <button class="small" id="btnFolder">📁 Open clips folder</button>
+          <button class="small danger" id="btnDelete">🗑 Delete</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="tabs" role="tablist" aria-label="Steps">
+      <button role="tab" id="tabMoments" aria-selected="true" aria-controls="paneMoments">① Choose moments <span class="count" id="cntMoments"></span></button>
+      <button role="tab" id="tabClips" aria-selected="false" aria-controls="paneClips">② Clips &amp; upload <span class="count" id="cntClips"></span></button>
+    </div>
+
+    <div id="paneMoments" role="tabpanel" aria-labelledby="tabMoments">
+      <div class="panel hidden" id="rerunBox">
+        <div class="row">
+          <label class="f" style="flex:1;min-width:240px">Focus
+            <input type="text" id="rFocus" maxlength="300" placeholder="e.g. the funniest reactions">
+          </label>
+          <label class="f">Shortest (s)<input type="text" id="rMin" size="4" value="20"></label>
+          <label class="f">Longest (s)<input type="text" id="rMax" size="4" value="59"></label>
+          <button class="primary" id="btnRerunGo">Search again</button>
+        </div>
+        <p class="muted small" style="margin:8px 0 0">Re-uses the saved transcript, so this only costs a few AI calls. Clips you already rendered stay in the gallery.</p>
+      </div>
+
+      <div class="panel timeline" id="tlBox">
+        <canvas id="tl" aria-label="Timeline of the video with the suggested moments"></canvas>
+        <div id="tlTip"></div>
+        <div class="legend" id="tlLegend"></div>
+      </div>
+
+      <div class="panel looks">
+        <div class="row">
+          <label class="f">Made for
+            <select id="preset">
+              <option value="9:16|auto" selected>YouTube Shorts / Reels / TikTok (9:16)</option>
+              <option value="1:1|auto">Instagram / X square (1:1)</option>
+              <option value="4:5|auto">Instagram feed portrait (4:5)</option>
+            </select>
+          </label>
+          <label class="f">Editing
+            <select id="editStyle"><option value="viral" selected>✨ Viral: pop-ups, zooms, sounds</option><option value="clean">Clean: jump cuts and captions</option><option value="off">Off</option></select>
+          </label>
+          <label class="f">Picture quality
+            <select id="quality"><option value="720">720p (faster)</option><option value="1080" selected>1080p</option><option value="2160">Best available</option></select>
+          </label>
+          <div class="row" style="align-items:center">
+            <label class="check"><input type="checkbox" id="captions"> Captions</label>
+            <select id="capStyle" aria-label="Caption style">
+              <option value="pop">Pop (animated words)</option><option value="classic">Classic</option><option value="karaoke">Karaoke (words light up)</option>
+              <option value="yellow">Yellow</option><option value="box">On a box</option>
+            </select>
+          </div>
+        </div>
+        <details class="more" style="margin:10px 0 0">
+          <summary>More look options</summary>
+          <div class="row">
+            <label class="f">Layout
+              <select id="layout">
+                <option value="auto" selected>Auto (recommended)</option><option value="cutout">Streamer on top, game below</option><option value="split">Split: facecam + gameplay</option>
+                <option value="track">Track: follow the speaker</option><option value="fit">Fit: whole frame, blurred sides</option>
+              </select>
+            </label>
+            <label class="f" title="Shown on every clip. Empty = your YouTube channel's name; a single - = nothing">Your branding
+              <input type="text" id="watermark" placeholder="e.g. @mychannel" maxlength="40" size="24" aria-label="Branding text on the clips">
+            </label>
+          </div>
+          <div class="row fxrow" id="fxRow" style="margin-top:6px">
+            <label class="check"><input type="checkbox" id="fx_jumpcut" checked> Cut out pauses</label>
+            <label class="check"><input type="checkbox" id="fx_zoom" checked> Punch-in zooms</label>
+            <label class="check"><input type="checkbox" id="fx_memes" checked> Memes from my folder</label>
+            <label class="check"><input type="checkbox" id="fx_popups"> Emoji stickers</label>
+            <label class="check"><input type="checkbox" id="fx_sfx" checked> Sound effects</label>
+            <label class="check"><input type="checkbox" id="fx_hook" checked> Headline at the start</label>
+            <label class="check"><input type="checkbox" id="fx_cta"> "Follow for more" at the end</label>
+            <label class="check"><input type="checkbox" id="fx_progress" checked> Progress bar</label>
+            <label class="check"><input type="checkbox" id="fx_color" checked> Brighter colours</label>
+          </div>
+          <div class="row" style="margin-top:6px">
+            <label class="check"><input type="checkbox" id="titleCard"> Title card at the start (when editing is off)</label>
+            <label class="check"><input type="checkbox" id="normalize" checked> Even loudness</label>
+            <label class="check"><input type="checkbox" id="kit" checked> Write title + hashtags</label>
+          </div>
+        </details>
+      </div>
+
+      <div class="listbar">
+        <h2 style="margin:0">Suggested moments</h2>
+        <label class="f" style="flex-direction:row;align-items:center;gap:8px">Order
+          <select id="sort"><option value="rank">Best first</option><option value="time">Timeline order</option></select>
+        </label>
+        <label class="check"><input type="checkbox" id="hideWeak"> Hide weak ones (below 50)</label>
+        <button class="small" id="selTop">Select top 3</button>
+        <button class="small" id="selNone">Clear</button>
+        <button class="small" id="addOwn">＋ Add my own clip</button>
+        <span class="muted small" id="count"></span>
+      </div>
+      <div class="grid" id="cards"></div>
+      <div class="more-row"><button id="moreCards" hidden></button></div>
+
+      <div class="actionbar" id="actionBar">
+        <span id="pickInfo">Tick the moments you like</span>
+        <span class="grow"></span>
+        <button class="small" id="kitSel" disabled title="Write a title, description and hashtags for the ticked moments">✍ Titles + hashtags</button>
+        <button class="primary" id="render" disabled>Render selected</button>
+      </div>
+    </div>
+
+    <div id="paneClips" role="tabpanel" aria-labelledby="tabClips" hidden>
+      <div class="listbar">
+        <h2 class="sec" style="margin:0">Rendered clips</h2>
+        <button class="small" id="ytSelAll" hidden>Select all</button>
+        <button class="small" id="ytSelNone" hidden>Clear</button>
+        <button class="primary small" id="ytUploadSel" hidden disabled title="Upload the ticked clips to your YouTube channel as Shorts">⬆ Upload to YouTube</button>
+        <button class="small" id="ytDequeue" hidden title="Take everything that is still waiting out of the upload queue">Stop waiting uploads</button>
+        <a class="small" id="btnZip" hidden download><button class="small" type="button" title="All clips, plus posts.txt and clips.csv with the titles and hashtags">⬇ Download everything (zip)</button></a>
+      </div>
+      <p class="small muted hidden" id="ytQueueNote" style="margin:-4px 0 10px"></p>
+      <div class="clips" id="clips"></div>
+    </div>
+  </section>
+
+  <!-- ============ YOUTUBE ============ -->
+  <section class="view" id="view-youtube" hidden>
+    <div class="viewhead"><h2>YouTube</h2></div>
+
+    <div class="panel" id="ytCard">
+      <div id="ytStatus" class="ytstatus"></div>
+      <div class="meter hidden" id="ytMeterBox"><div class="bar"><i id="ytMeter"></i></div><span class="small muted" id="ytMeterText"></span></div>
+      <div class="row" style="margin-top:12px">
+        <button class="small" id="ytPause" hidden>⏸ Pause uploads</button>
+        <button class="small" id="ytReconnect" hidden>Reconnect</button>
+        <button class="small" id="ytChange" hidden>Change Google client…</button>
+        <button class="small danger" id="ytDisconnect" hidden>Disconnect</button>
+      </div>
+    </div>
+
+    <div class="panel" id="ytWizard">
+      <h3 class="wh">Connect your channel <span class="muted small">(one time, about 5 minutes, free)</span></h3>
+      <p class="muted small" style="margin:0 0 12px">YouTube only lets an app upload for you after you create <b>your own key</b> in Google's console. The key stays on this computer, so only you can use your channel. Follow the steps; each one has a button that opens the right Google page.</p>
+      <ol class="steps5" id="ytSteps">
+        <li data-step="1">
+          <div class="sn">1</div>
+          <div class="sb"><b>Create a Google project</b>
+            <p>Open the page, name it anything (e.g. <i>Shorts Studio</i>) and press <b>Create</b>.</p>
+            <a class="btnlink" href="https://console.cloud.google.com/projectcreate" target="_blank" rel="noopener">Open Google Cloud ↗</a>
+          </div>
+          <button class="small done" data-done="1">I did this</button>
+        </li>
+        <li data-step="2">
+          <div class="sn">2</div>
+          <div class="sb"><b>Turn on the YouTube API</b>
+            <p>Check your new project is selected at the top, then press <b>Enable</b>.</p>
+            <a class="btnlink" href="https://console.cloud.google.com/apis/library/youtube.googleapis.com" target="_blank" rel="noopener">Open YouTube Data API ↗</a>
+          </div>
+          <button class="small done" data-done="2">I did this</button>
+        </li>
+        <li data-step="3">
+          <div class="sn">3</div>
+          <div class="sb"><b>Set up the consent screen, then publish it</b>
+            <p>Press <b>Get started</b>: app name <i>Shorts Studio</i>, your email, audience <b>External</b>, your email again, agree, <b>Create</b>. Then open <b>Audience</b>, add your own Google account under <b>Test users</b>, and press <b>Publish app → In production</b>. <span class="warn">Skipping the last part makes Google sign you out every 7 days.</span></p>
+            <a class="btnlink" href="https://console.cloud.google.com/auth/overview" target="_blank" rel="noopener">Open consent screen ↗</a>
+            <a class="btnlink" href="https://console.cloud.google.com/auth/audience" target="_blank" rel="noopener">Open Audience ↗</a>
+          </div>
+          <button class="small done" data-done="3">I did this</button>
+        </li>
+        <li data-step="4">
+          <div class="sn">4</div>
+          <div class="sb"><b>Create the key and give it to the app</b>
+            <p>Open <b>Clients → Create client</b>, type <b>Desktop app</b>, <b>Create</b>, then <b>Download JSON</b>. Drop that file below.</p>
+            <a class="btnlink" href="https://console.cloud.google.com/auth/clients" target="_blank" rel="noopener">Open Clients ↗</a>
+            <div class="drop" id="ytDrop" tabindex="0" role="button" aria-label="Drop the downloaded JSON here, or click to choose it">
+              <b>Drop the JSON file here</b>
+              <span class="muted small">or click to choose it · or paste its text with Ctrl+V</span>
+              <input type="file" id="ytFile" accept=".json,application/json" hidden>
+            </div>
+            <div class="small" id="ytCheckMsg"></div>
+            <details class="more" style="margin:8px 0 0"><summary>Type the client id and secret instead</summary>
+              <div class="grid2" style="margin-top:8px">
+                <label class="f">Client ID<input type="text" id="ytId" autocomplete="off" placeholder="123456-abc.apps.googleusercontent.com"></label>
+                <label class="f">Client secret <span id="ytSecretState"></span>
+                  <input type="password" id="ytSecret" autocomplete="off" placeholder="saved, never shown again">
+                </label>
+              </div>
+              <div class="row" style="margin-top:8px"><button class="small" id="ytSaveClient" type="button">Save and check</button></div>
+            </details>
+          </div>
+          <span class="autostate" id="ytStep4State"></span>
+        </li>
+        <li data-step="5">
+          <div class="sn">5</div>
+          <div class="sb"><b>Sign in with the account that owns your channel</b>
+            <p>Google warns <i>"this app isn't verified"</i>: press <b>Advanced → Go to … (unsafe)</b>. It is your own app. Keep <b>every permission box ticked</b>.</p>
+            <button class="primary" id="ytConnect" type="button">Connect YouTube</button>
+          </div>
+          <span class="autostate" id="ytStep5State"></span>
+        </li>
+      </ol>
+      <p class="muted small" style="margin:12px 0 0">Prefer not to? You can always <b>download the clips as a zip</b> (on the video's <i>Clips &amp; upload</i> tab) and upload them yourself in YouTube Studio.</p>
+    </div>
+
+    <div class="panel" id="ytPrefs">
+      <h3 class="wh">Upload settings</h3>
+      <div class="grid2">
+        <label class="f">Default visibility
+          <select id="ytPrivacy"><option value="private">Private: I check it in YouTube Studio first</option><option value="unlisted">Unlisted</option><option value="public">Public</option></select>
+        </label>
+        <label class="f">Category
+          <select id="ytCategory">
+            <option value="22">People &amp; Blogs</option><option value="20">Gaming</option><option value="24">Entertainment</option><option value="23">Comedy</option>
+            <option value="27">Education</option><option value="28">Science &amp; Technology</option><option value="25">News &amp; Politics</option>
+            <option value="26">Howto &amp; Style</option><option value="17">Sports</option><option value="10">Music</option>
+          </select>
+        </label>
+        <label class="f">Most uploads per day
+          <input type="number" id="ytDaily" min="1" max="50" step="1" value="10">
+        </label>
+        <div>
+          <label class="check"><input type="checkbox" id="ytAuto" checked> Continue waiting uploads by themselves</label>
+          <label class="check"><input type="checkbox" id="ytNotify"> Notify my subscribers about each upload</label>
+          <label class="check"><input type="checkbox" id="ytDelete" checked> Delete a clip from this computer once it is posted</label>
+        </div>
+      </div>
+      <div class="row" style="margin-top:10px"><button class="small primary" id="ytSavePrefs" type="button">Save settings</button></div>
+      <p class="muted small" style="margin:8px 0 0">Uploads that cannot go now (your daily limit, YouTube's quota, no internet) wait in a queue and continue while this app is open. Only upload videos you own or have the right to post: copyrighted music can get a Short blocked.</p>
+    </div>
+
+    <div class="panel" id="ytLog">
+      <div class="viewhead" style="margin-bottom:8px">
+        <h3 class="wh" style="margin:0">Uploads</h3>
+        <div class="seg" id="ytTabs">
+          <button type="button" class="on" data-tab="waiting">Waiting <span class="count" id="ytCntWaiting"></span></button>
+          <button type="button" data-tab="done">On YouTube <span class="count" id="ytCntDone"></span></button>
+          <button type="button" data-tab="problems">Problems <span class="count" id="ytCntProblems"></span></button>
+        </div>
+        <button class="small primary" id="ytTryNow" hidden>Try now</button>
+        <button class="small danger" id="ytClearQueue" hidden>Stop all waiting uploads</button>
+      </div>
+      <div id="ytList"></div>
+    </div>
+  </section>
+
+  </main>
+</div>
+
+<!-- ============ SETTINGS ============ -->
+<dialog id="settings">
+  <div class="box">
+    <h3>Settings</h3>
+    <div class="seg" id="sTabs" role="tablist">
+      <button type="button" class="on" data-pane="ai" role="tab">AI</button>
+      <button type="button" data-pane="login" role="tab">Logins &amp; network</button>
+      <button type="button" data-pane="health" role="tab">Health</button>
+      <button type="button" data-pane="disk" role="tab">Disk</button>
+      <button type="button" data-pane="app" role="tab">App</button>
+    </div>
+
+    <div class="spane" data-pane="ai">
+      <div class="grid2">
+        <label class="f">AI provider
+          <select id="sProvider"><option value="gemini">Google Gemini (free key available)</option><option value="openai">OpenAI</option></select>
+        </label>
+        <label class="f" id="sModelWrap">Model
+          <select id="sGeminiModel"><option value="auto">Auto: best available, falls back by itself</option></select>
+        </label>
+        <label class="f full" id="sGKeyWrap">Gemini API key <span id="sGKeyState"></span>
+          <input type="password" id="sGKey" placeholder="Paste a new key to replace it" autocomplete="off">
+        </label>
+        <label class="f full hidden" id="sOKeyWrap">OpenAI API key <span id="sOKeyState"></span>
+          <input type="password" id="sOKey" placeholder="Paste a new key to replace it" autocomplete="off">
+        </label>
+        <label class="f hidden" id="sOModelWrap">OpenAI model<input type="text" id="sOModel" value="gpt-4o-mini"></label>
+        <p class="muted small full" id="sHelp" style="margin:0">Get a free Gemini key at <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com/apikey</a>. The key is saved only in the .env file on this computer.</p>
+      </div>
+      <div id="sTest" class="small"></div>
+      <div class="row"><button type="button" class="small" id="sTestBtn">Test the connection</button></div>
+    </div>
+
+    <div class="spane hidden" data-pane="login">
+      <div class="grid2">
+        <label class="f">Videos that need a login
+          <select id="sCookies"><option value="">No</option><option value="chrome">Use my Chrome sign-in</option><option value="edge">Use my Edge sign-in</option><option value="firefox">Use my Firefox sign-in</option></select>
+        </label>
+        <label class="f">Speech recognition model (only if a video has no captions)
+          <select id="sWhisper"><option>tiny</option><option selected>base</option><option>small</option><option>medium</option></select>
+        </label>
+        <label class="f full">…or a cookies file (when reading the browser does not work)
+          <input type="text" id="sCookiesFile" placeholder="C:\path\to\cookies.txt  (exported from your browser while signed in to YouTube)" autocomplete="off">
+        </label>
+        <label class="f full">Proxy <span id="sProxyState"></span>
+          <input type="password" id="sProxy" placeholder="http://user:pass@host:port  (saved, never shown again)" autocomplete="off">
+        </label>
+      </div>
+      <p class="muted small" style="margin:0">Only needed for age-restricted or members-only videos, the "confirm you're not a bot" check, or a network that needs a proxy.</p>
+    </div>
+
+    <div class="spane hidden" data-pane="health">
+      <label class="f">Video encoder
+        <select id="sEncoder"><option value="auto">Automatic: the graphics chip when it works (faster)</option><option value="cpu">Processor only</option></select>
+      </label>
+      <div id="sHealth" class="small"></div>
+      <div class="row" style="margin-top:8px">
+        <button class="small" id="hRecheck" type="button">Check again (also tests the network)</button>
+        <button class="small" id="hUpdate" type="button" title="YouTube changes often; an old yt-dlp is the most common reason a link stops working">Update yt-dlp</button>
+        <a href="/api/diagnostics.zip" download><button class="small" type="button" title="Logs, health and versions, never any key. Attach it to a bug report.">Download diagnostics</button></a>
+      </div>
+    </div>
+
+    <div class="spane hidden" data-pane="disk">
+      <div class="usage" id="sUsage"></div>
+      <div class="row" style="margin-top:8px">
+        <button class="small" id="cleanLegacy" hidden>Delete old whole-video downloads</button>
+        <button class="small" id="cleanCache">Clear saved transcripts</button>
+        <button class="small" id="cleanLlm">Clear saved AI answers</button>
+      </div>
+      <label class="f" style="margin-top:10px">Remove saved captions and AI answers by itself after this many days
+        <input type="number" id="sCacheDays" min="1" max="90" step="1" value="3">
+      </label>
+    </div>
+
+    <div class="spane hidden" data-pane="app">
+      <label class="check"><input type="checkbox" id="sAutostart"> Start Shorts Studio by itself when Windows starts (no window; uploads keep going)</label>
+      <p class="muted small" id="sAppNote" style="margin:6px 0 0">Open it any time with the Shorts Studio icon on your desktop or in the Start menu.</p>
+      <div class="row" style="margin-top:10px"><button class="small danger" type="button" id="sQuit">Quit Shorts Studio</button></div>
+    </div>
+
+    <div class="foot">
+      <span class="muted small" id="sVersion" style="margin-right:auto"></span>
+      <button id="sClose" type="button">Close</button>
+      <button class="primary" id="sSave" type="button">Save</button>
+    </div>
+  </div>
+</dialog>
+
+<!-- ============ UPLOAD (review) ============ -->
+<dialog id="ytUpload">
+  <div class="box">
+    <h3>Upload to YouTube</h3>
+    <p class="small" id="yuSummary" style="margin:0"></p>
+    <div class="grid2">
+      <label class="f">Visibility
+        <select id="yuPrivacy"><option value="private">Private</option><option value="unlisted">Unlisted</option><option value="public">Public</option></select>
+      </label>
+      <label class="f">When
+        <select id="yuWhen"><option value="now">Right away</option><option value="schedule">Schedule…</option></select>
+      </label>
+      <label class="f hidden" id="yuStartWrap">First one goes live at<input type="datetime-local" id="yuStart"></label>
+      <label class="f hidden" id="yuEveryWrap">Then one every
+        <select id="yuEvery"><option value="1">1 hour</option><option value="3">3 hours</option><option value="6">6 hours</option><option value="12">12 hours</option>
+          <option value="24" selected>day</option><option value="48">2 days</option></select>
+      </label>
+    </div>
+    <p class="muted small" id="yuNote" style="margin:0"></p>
+    <details class="more" id="yuReview" style="margin:0">
+      <summary>Review the titles and descriptions <span class="muted small">(optional: edit anything you like)</span></summary>
+      <div id="yuItems" class="yuitems"></div>
+    </details>
+    <div class="small" id="yuWarn"></div>
+    <div id="yuErr" class="err small"></div>
+    <div class="foot"><button id="yuCancel" type="button">Cancel</button><button class="primary" id="yuGo" type="button">Upload</button></div>
+  </div>
+</dialog>
+
+<dialog id="addClip">
+  <form method="dialog" class="box" id="addForm">
+    <h3>Add my own clip</h3>
+    <p class="muted small" style="margin:0">Use the preview player on any card to find the moment, then type the times here (like 12:34 or 1:02:03, or seconds).</p>
+    <div class="grid2">
+      <label class="f">Start<input type="text" id="acStart" placeholder="12:34" autocomplete="off"></label>
+      <label class="f">End<input type="text" id="acEnd" placeholder="13:10" autocomplete="off"></label>
+      <label class="f full">Title<input type="text" id="acTitle" placeholder="My clip" maxlength="100"></label>
+    </div>
+    <div id="acErr" class="err small"></div>
+    <div class="foot"><button value="cancel" type="submit">Cancel</button><button class="primary" id="acOk" type="button">Add clip</button></div>
+  </form>
+</dialog>
+
+<div id="toasts" role="status" aria-live="polite"></div>
+<script src="/static/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,11 @@
+# Tooling configuration only. Shorts Studio is run from this folder (setup.bat / run_ui.bat / python app.py);
+# it is not published as a pip package.
+
+[tool.ruff]
+line-length = 140
+target-version = "py310"
+extend-exclude = ["venv", "output"]
+
+[tool.ruff.lint]
+# real bugs only (syntax errors, pyflakes: unused/undefined names, mutable defaults, pylint errors) - not style.
+select = ["E9", "F", "B006", "B008", "PLE"]

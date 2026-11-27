@@ -1,84 +1,50 @@
-"""Local transcription via faster-whisper.
+"""Whisper transcription (faster-whisper) — the FALLBACK for videos that have no captions.
 
-Reads a local media file and returns the same shape the highlight generator
-expects: {duration, segments[start, end, text]}.
+faster-whisper is an optional dependency (``pip install faster-whisper``): most videos never need it
+because their captions are fetched instead (see transcript.py). Caching is done by the caller.
 """
-import os
-import re
-from pathlib import Path
+import time
 from typing import Dict, Optional
 
-from ..config import LOCAL_OUTPUT_DIR, LOCAL_WHISPER_DEVICE, LOCAL_WHISPER_MODEL
+from ..config import (
+    LOCAL_WHISPER_BEAM_SIZE,
+    LOCAL_WHISPER_DEVICE,
+    LOCAL_WHISPER_THREADS,
+    LOCAL_WHISPER_VAD_FILTER,
+    LOCAL_WHISPER_VAD_PARAMETERS,
+    whisper_model,
+)
+from . import control
 
 
-def _transcript_cache_path(media_path: str) -> Path:
-    """Return the .srt cache path for a media file."""
-    cache_dir = Path(LOCAL_OUTPUT_DIR)
-    cache_dir.mkdir(parents=True, exist_ok=True)
-    return cache_dir / (Path(media_path).stem + ".srt")
+def _clock(seconds: float) -> str:
+    s = int(round(max(0.0, seconds)))
+    h, rem = divmod(s, 3600)
+    m, sec = divmod(rem, 60)
+    return f"{h}:{m:02d}:{sec:02d}" if h else f"{m}:{sec:02d}"
 
 
-def _format_srt_timestamp(seconds: float) -> str:
-    total_ms = max(0, int(round(seconds * 1000)))
-    ms = total_ms % 1000
-    total_s = total_ms // 1000
-    s = total_s % 60
-    total_m = total_s // 60
-    m = total_m % 60
-    h = total_m // 60
-    return f"{h:02d}:{m:02d}:{s:02d},{ms:03d}"
+def _media_duration(path: str) -> float:
+    """Container duration in seconds (0.0 if unknown). Uses PyAV, a faster-whisper dependency."""
+    try:
+        import av  # type: ignore
+
+        with av.open(path) as container:
+            if container.duration:
+                return float(container.duration) / 1_000_000.0
+    except Exception:
+        pass
+    return 0.0
 
 
-def _parse_srt_timestamp(value: str) -> float:
-    match = re.fullmatch(r"(\d{2}):(\d{2}):(\d{2}),(\d{3})", value.strip())
-    if not match:
-        raise ValueError(f"Invalid SRT timestamp: {value!r}")
-    hours, minutes, seconds, millis = map(int, match.groups())
-    return hours * 3600 + minutes * 60 + seconds + (millis / 1000.0)
-
-
-def _write_srt_cache(media_path: str, transcript: Dict) -> Path:
-    cache_path = _transcript_cache_path(media_path)
-    lines = []
-    for idx, segment in enumerate(transcript.get("segments", []), start=1):
-        start = _format_srt_timestamp(float(segment["start"]))
-        end = _format_srt_timestamp(float(segment["end"]))
-        text = str(segment.get("text", "")).strip().replace("\r", "").replace("\n", " ")
-        lines.append(str(idx))
-        lines.append(f"{start} --> {end}")
-        lines.append(text)
-        lines.append("")
-
-    cache_path.write_text("\n".join(lines), encoding="utf-8")
-    return cache_path
-
-
-def _load_srt_cache(cache_path: Path) -> Dict:
-    content = cache_path.read_text(encoding="utf-8-sig").strip()
-    if not content:
-        return {"duration": 0.0, "segments": []}
-
-    segments = []
-    for block in re.split(r"\n\s*\n", content):
-        lines = [line.strip("\ufeff") for line in block.splitlines() if line.strip()]
-        if not lines:
-            continue
-        if "-->" not in lines[0] and len(lines) > 1 and "-->" in lines[1]:
-            lines = lines[1:]
-        if not lines or "-->" not in lines[0]:
-            continue
-        start_raw, end_raw = [part.strip() for part in lines[0].split("-->", 1)]
-        text = "\n".join(lines[1:]).strip()
-        segments.append(
-            {
-                "start": _parse_srt_timestamp(start_raw),
-                "end": _parse_srt_timestamp(end_raw),
-                "text": text,
-            }
-        )
-
-    duration = segments[-1]["end"] if segments else 0.0
-    return {"duration": duration, "segments": segments}
+def _pick_beam(setting: str, duration: float) -> int:
+    """'auto' -> beam 5 up to 30 min of audio, greedy (1) beyond; otherwise the number given."""
+    if setting not in ("", "auto"):
+        try:
+            return max(1, int(setting))
+        except ValueError:
+            pass
+    return 5 if duration <= 1800 else 1
 
 
 def _resolve_device() -> str:
@@ -87,8 +53,7 @@ def _resolve_device() -> str:
     try:
         import torch  # type: ignore
         if torch.cuda.is_available():
-            # Test that CUDA actually works (catches missing cuBLAS/cuDNN libs)
-            torch.zeros(1, device="cuda")
+            torch.zeros(1, device="cuda")      # catches missing cuBLAS/cuDNN libs
             return "cuda"
     except (ImportError, OSError, RuntimeError):
         pass
@@ -96,67 +61,49 @@ def _resolve_device() -> str:
 
 
 def transcribe_local(media_path: str, language: Optional[str] = None) -> Dict:
-    """Run faster-whisper on a local file path, caching the result as .srt."""
-    cache_path = _transcript_cache_path(media_path)
-    if cache_path.exists():
-        source_mtime = os.path.getmtime(media_path)
-        cache_mtime = cache_path.stat().st_mtime
-        if cache_mtime >= source_mtime:
-            print(f"[transcribe/local] reusing cached transcript: {cache_path}", flush=True)
-            cached = _load_srt_cache(cache_path)
-            # Treat empty cache as invalid (likely from a failed/partial run) — delete and re-transcribe
-            if not cached["segments"] or cached["duration"] <= 0.0:
-                print(f"[transcribe/local] cache is empty/invalid, deleting: {cache_path}", flush=True)
-                cache_path.unlink(missing_ok=True)
-            else:
-                print(
-                    f"[transcribe/local] {len(cached['segments'])} cached segments, "
-                    f"{cached['duration']:.0f}s of audio",
-                    flush=True,
-                )
-                return cached
-
+    """Run faster-whisper on a local audio/video file -> {duration, language, segments}."""
     try:
         from faster_whisper import WhisperModel  # type: ignore
     except ImportError as e:
         raise RuntimeError(
-            "faster-whisper is required for --mode local. Install it with:\n"
-            "    pip install -r requirements-local.txt"
+            "This video has no usable captions, so its speech has to be transcribed with Whisper, which is "
+            "not installed. Install it with:  pip install faster-whisper"
         ) from e
 
     device = _resolve_device()
     compute_type = "float16" if device == "cuda" else "int8"
-    print(f"[transcribe/local] faster-whisper model={LOCAL_WHISPER_MODEL} device={device}", flush=True)
+    total = _media_duration(media_path)
+    beam = _pick_beam(LOCAL_WHISPER_BEAM_SIZE, total)
+    print(
+        f"[transcribe/local] faster-whisper model={whisper_model()} device={device} beam={beam} "
+        f"threads={LOCAL_WHISPER_THREADS or 'default'} audio={_clock(total)}",
+        flush=True,
+    )
+    # cpu_threads: 0 lets CTranslate2 choose (4). Do not default to os.cpu_count(): hyperthreads fight over cores.
+    model = WhisperModel(whisper_model(), device=device, compute_type=compute_type, cpu_threads=LOCAL_WHISPER_THREADS)
 
-    from ..config import LOCAL_WHISPER_VAD_FILTER, LOCAL_WHISPER_VAD_PARAMETERS
-
-    model = WhisperModel(LOCAL_WHISPER_MODEL, device=device, compute_type=compute_type)
-
-    transcribe_kwargs = {
-        "audio": media_path,
-        "language": language,
-        "beam_size": 5,
-        "condition_on_previous_text": False,
-    }
+    kwargs = {"audio": media_path, "language": language, "beam_size": beam, "condition_on_previous_text": False,
+              "vad_filter": bool(LOCAL_WHISPER_VAD_FILTER)}
     if LOCAL_WHISPER_VAD_FILTER:
-        transcribe_kwargs["vad_filter"] = True
-        transcribe_kwargs["vad_parameters"] = LOCAL_WHISPER_VAD_PARAMETERS
-    else:
-        transcribe_kwargs["vad_filter"] = False
-
-    segments_iter, info = model.transcribe(**transcribe_kwargs)
+        kwargs["vad_parameters"] = LOCAL_WHISPER_VAD_PARAMETERS
+    segments_iter, info = model.transcribe(**kwargs)
+    total = total or float(getattr(info, "duration", 0.0))
 
     segments = []
+    started = last_report = time.time()
     for s in segments_iter:
-        segments.append({
-            "start": float(s.start),
-            "end": float(s.end),
-            "text": (s.text or "").strip(),
-        })
+        control.check()
+        segments.append({"start": float(s.start), "end": float(s.end), "text": (s.text or "").strip()})
+        now = time.time()
+        if total > 0 and now - last_report >= 5:
+            last_report = now
+            done = min(float(s.end), total)
+            elapsed = now - started
+            eta = elapsed * (total - done) / done if done > 0 else 0
+            control.report("transcribe", done / total, f"{_clock(done)} / {_clock(total)} · about {_clock(eta)} left")
+            print(f"[transcribe/local] {done / total:5.1%}  {_clock(done)} / {_clock(total)}  "
+                  f"elapsed {_clock(elapsed)}  eta ~{_clock(eta)}", flush=True)
 
     duration = float(getattr(info, "duration", 0.0)) or (segments[-1]["end"] if segments else 0.0)
     print(f"[transcribe/local] {len(segments)} segments, {duration:.0f}s of audio", flush=True)
-    transcript = {"duration": duration, "segments": segments}
-    cache_path = _write_srt_cache(media_path, transcript)
-    print(f"[transcribe/local] wrote cache: {cache_path}", flush=True)
-    return transcript
+    return {"duration": duration, "language": getattr(info, "language", language) or "", "segments": segments}

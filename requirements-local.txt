@@ -1,10 +1,15 @@
 -r requirements.txt
 
-# Optional dependencies for --mode local.
+# Local mode (python main.py --mode local, and the web UI: python app.py).
+# This is the whole install: no AI SDKs (Gemini / OpenAI are called over plain HTTPS with `requests`),
+# no Whisper, no PyTorch.
 yt-dlp>=2024.1.1
-faster-whisper>=1.0.0
-openai>=1.0.0
-google-genai>=1.0.0
-opencv-python>=4.8.0
-# torch is only needed if you want CUDA Whisper. CPU works without it.
-# torch>=2.0
+numpy>=1.24
+# headless: the same cv2 without the Qt/GUI libraries (about half the size, and nothing here opens a window).
+# <5: OpenCV 5 removed CascadeClassifier (the face detector).
+opencv-python-headless>=4.8.0,<5
+flask>=3.0
+# emoji and word popups of the automatic edit (colour emoji from the system's emoji font)
+pillow>=10.4
+
+# Optional, see requirements-whisper.txt: only for videos that have no captions at all.

@@ -1,0 +1,9 @@
+-r requirements-local.txt
+
+# OPTIONAL. Only needed for videos that have no captions at all (the tool then transcribes the audio
+# track itself). Most videos never need it, and it is the heaviest part of the install.
+faster-whisper>=1.0.0
+# av 17+ dropped the `metadata_errors` kwarg that faster-whisper still passes to av.open().
+av>=11,<17
+# torch is only needed if you want CUDA Whisper. CPU works without it.
+# torch>=2.0

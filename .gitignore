@@ -6,3 +6,8 @@ venv/
 output/
 *.mp4
 .DS_Store
+memes/
+Memes Assets/
+
+# web pages with a contact address: they stay on this computer
+google_pages/
